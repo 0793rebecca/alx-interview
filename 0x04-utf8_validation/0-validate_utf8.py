@@ -1,31 +1,32 @@
 #!/usr/bin/python3
 
+
 def validUTF8(data):
-    # Helper function to check if a byte is a valid UTF-8 continuation byte
-    def is_continuation(byte):
-        return (byte & 0b11000000) == 0b10000000
+    # Counter to keep track of the number of bytes left in a multi-byte character
+    bytes_left = 0
 
-    # Iterate through each byte in the data
-    i = 0
-    while i < len(data):
-        # Get the number of bytes for the current character
-        leading_bits = data[i] >> 5
+    for byte in data:
+        # Consider only the 8 least significant bits of each integer
+        byte = byte & 0xFF
 
-        if leading_bits == 0b11110:  # 4-byte character
-            if i + 3 >= len(data) or any(not is_continuation(data[j]) for j in range(i + 1, i + 4)):
+        # Check if the current byte is a continuation byte
+        if bytes_left > 0:
+            if (byte >> 6) == 0b10:
+                bytes_left -= 1
+            else:
                 return False
-            i += 4
-        elif leading_bits == 0b1110:  # 3-byte character
-            if i + 2 >= len(data) or any(not is_continuation(data[j]) for j in range(i + 1, i + 3)):
-                return False
-            i += 3
-        elif leading_bits == 0b110:  # 2-byte character
-            if i + 1 >= len(data) or not is_continuation(data[i + 1]):
-                return False
-            i += 2
-        elif leading_bits == 0:  # 1-byte character
-            i += 1
         else:
-            return False  # Invalid leading bits for UTF-8 character
+            # Determine the number of bytes for the current character
+            if byte >> 7 == 0:
+                bytes_left = 0  # 1-byte character
+            elif byte >> 5 == 0b110:
+                bytes_left = 1  # 2-byte character
+            elif byte >> 4 == 0b1110:
+                bytes_left = 2  # 3-byte character
+            elif byte >> 3 == 0b11110:
+                bytes_left = 3  # 4-byte character
+            else:
+                return False  # Invalid leading bits for UTF-8 character
 
-    return True
+    # Check if there are any remaining bytes left
+    return bytes_left == 0
